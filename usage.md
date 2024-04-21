@@ -4,7 +4,7 @@
 
 2. 打开 F12（DevTools）-Console（控制台）并且在 > 后面输入 `console.log(document.cookie)` 然后回车
 
-3. 完整地复制输出结果（不包括开头和结尾的 ' ）
+3. 完整地复制输出结果
 
 4. 下载或Clone本项目代码，解压
 
