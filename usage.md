@@ -8,15 +8,13 @@
 
 4. 下载或Clone本项目代码，解压
 
-5. 运行 `npm install` （如果你没有 Node.JS，去装一个）
+5. 编辑 `start.bat` 文件，把上面的 Cookie 粘贴进去
 
-6. 编辑 `start.bat` 文件，把上面的 Cookie 粘贴进去
+6. 启动 start.bat
 
-7. 启动 start.bat
+7. 酒馆中选择 Claude，反向代理地址填 http://127.0.0.1:8080/v1
 
-8. 酒馆中选择 Claude，反向代理地址填 http://127.0.0.1:8080/v1
-
-9. 开始使用。如果失败了/没有结果/403/Warning 就多重试几次。
+8. 开始使用。如果失败了/没有结果/403/Warning 就多重试几次。
 
 ## 注意事项
 
@@ -32,15 +30,13 @@
 
 4. Download or clone the project code and extract it.
 
-5. Run `npm install` (if you don't have Node.JS, go install it).
+5. Edit the `start.bat` file and paste the Cookie from above into it.
 
-6. Edit the `start.bat` file and paste the Cookie from above into it.
+6. Launch start.bat.
 
-7. Launch start.bat.
+7. In the ST, select Claude and fill in the reverse proxy address as http://127.0.0.1:8080/v1.
 
-8. In the ST, select Claude and fill in the reverse proxy address as http://127.0.0.1:8080/v1.
-
-9. Start using it. If it fails/no results/403/Warning, try again several times.
+8. Start using it. If it fails/no results/403/Warning, try again several times.
 
 ## Notes
 
