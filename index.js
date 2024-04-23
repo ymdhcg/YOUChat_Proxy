@@ -177,7 +177,7 @@ app.post("/v1/messages", (req, res) => {
 							userFiles: uploadedFile
 								? JSON.stringify([
 										{
-											user_filename: "messages.txt",
+											user_filename: "messages.docx",
 											filename: uploadedFile,
 											size: messageBuffer.length,
 										},
