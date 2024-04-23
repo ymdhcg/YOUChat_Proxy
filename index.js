@@ -1,5 +1,6 @@
 const express = require("express");
 const FormData = require("form-data");
+const docx = require("docx");
 const { v4: uuidv4 } = require("uuid");
 const app = express();
 const axios = require("axios");
@@ -118,8 +119,8 @@ app.post("/v1/messages", (req, res) => {
 
 					// POST https://you.com/api/upload to upload user message
 					const form_data = new FormData();
-					var messageBuffer = Buffer.from(previousMessages, "utf8");
-					form_data.append("file", messageBuffer, { filename: "messages.txt", contentType: "text/plain" });
+					var messageBuffer = await createDocx(previousMessages);
+					form_data.append("file", messageBuffer, { filename: "messages.docx", contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
 					var uploadedFile = await axios
 						.post("https://you.com/api/upload", form_data, {
 							headers: {
@@ -282,4 +283,26 @@ function createEvent(event, data) {
 		data = JSON.stringify(data);
 	}
 	return `event: ${event}\ndata: ${data}\n\n`;
+}
+
+function createDocx(content) {
+	var paragraphs = [];
+	content.split("\n").forEach((line) => {
+	paragraphs.push(new docx.Paragraph({
+		children: [
+			new docx.TextRun(line),
+		],
+	}));
+});
+	var doc = new docx.Document({
+		sections: [
+			{
+				properties: {},
+				children: 
+					paragraphs
+				,
+			},
+		],
+	});
+	return docx.Packer.toBuffer(doc).then((buffer) => buffer);
 }
