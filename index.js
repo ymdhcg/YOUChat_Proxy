@@ -54,6 +54,7 @@ app.post("/v1/messages", (req, res) => {
 					// 把系统消息加入messages的首条
 					jsonBody.messages.unshift({ role: "system", content: jsonBody.system });
 				}
+				console.log(jsonBody.messages);
 				jsonBody.messages.forEach((msg) => {
 					if (msg.role == "system" || msg.role == "user") {
 						if (lastUpdate) {
@@ -185,7 +186,7 @@ app.post("/v1/messages", (req, res) => {
 						},
 						headers: {
 							accept: "text/event-stream",
-							referer: "https://you.com/search?q=" + encodeURIComponent(userQuery.trim()) +"&fromSearchBar=true&tbm=youchat&chatMode=custom"
+							referer: "https://you.com/search?q=&fromSearchBar=true&tbm=youchat&chatMode=custom"
 						},
 						responseType: "stream",
 					})
