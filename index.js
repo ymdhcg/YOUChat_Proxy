@@ -100,7 +100,7 @@ app.post("/v1/messages", (req, res) => {
 
 
 				// 试算用户消息长度
-				if(encodeURIComponent(JSON.stringify(userMessage)).length > 30000) { 
+				if(encodeURIComponent(JSON.stringify(userMessage)).length + encodeURIComponent(userQuery).length > 32000) { 
 					//太长了，需要上传
 
 					// user message to plaintext
@@ -110,7 +110,7 @@ app.post("/v1/messages", (req, res) => {
 						})
 						.join("\n\n");
 
-					userQuery = userMessage[userMessage.length - 1].question;
+					userQuery = "Please view the document and reply.";
 					userMessage = [];
 
 					// GET https://you.com/api/get_nonce to get nonce
