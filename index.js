@@ -6,8 +6,7 @@ const app = express();
 const axios = require("axios");
 const port = 8080;
 
-axios.defaults.headers.common["User-Agent"] =
-	"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";
+axios.defaults.headers.common["User-Agent"] = process.env.USER_AGENT;
 axios.defaults.headers.common["Cookie"] = process.env.YOUCOM_COOKIE;
 
 
