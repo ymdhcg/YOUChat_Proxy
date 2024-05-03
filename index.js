@@ -240,6 +240,14 @@ app.post("/v1/messages", (req, res) => {
 						console.log(e);
 					}
 				});
+
+				res.on("close", function () {
+					console.log(" > [Client closed]");
+					if (stream && typeof stream.destroy === 'function') {
+						stream.destroy();
+					}
+				});
+
 				stream.on("end", () => {
 					// send ending
 					res.write(createEvent("content_block_stop", { type: "content_block_stop", index: 0 }));
