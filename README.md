@@ -1,3 +1,14 @@
+---
+title: YouChat Proxy
+emoji: 🤖
+colorFrom: purple
+colorTo: gray
+sdk: docker
+app_port: 8080
+app_file: index.js
+pinned: false
+---
+
 # Miaomiaomiao
 
 A proxy for YOU Chat.
