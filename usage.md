@@ -2,7 +2,7 @@
 
 1. 获得一个 YOU.COM 账户并且订阅，登录。
 
-2. 打开 F12（DevTools），找到 “Network（网络）”、刷新一下页面，找到“you.com”这个项目
+2. 打开 F12（DevTools），找到 “Network（网络）”、刷新一下页面，找到“you.com”这个项目（或者“instrumentation”这个项目）
 
 3. 点进去，往下滑找到 "Cookie"，完整的复制后面的内容。
 
@@ -26,7 +26,7 @@
 
 1. Get a you.com account and subscribe, log in.
 
-2. Open F12 (DevTools), find “Network”, refresh the page, and find “you.com”.
+2. Open F12 (DevTools), find “Network”, refresh the page, and find “you.com” (or "instrumentation") entry.
 
 3. Click on it, scroll down and find “Cookie:”, and copy the entire contents.
 
