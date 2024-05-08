@@ -219,13 +219,12 @@ app.post("/v1/messages", apiKeyAuth, (req, res) => {
 					}
 
 					try {
-						console.log(chunk);
 						if (chunk.indexOf("event: youChatToken\n") != -1) {
 							chunk.split("\n").forEach((line) => {
 								if (line.startsWith(`data: {"youChatToken"`)) {
 									let data = line.substring(6);
 									let json = JSON.parse(data);
-									//console.log(json);
+									process.stdout.write(json.youChatToken);
 									chunkJSON = JSON.stringify({
 										type: "content_block_delta",
 										index: 0,
@@ -234,6 +233,8 @@ app.post("/v1/messages", apiKeyAuth, (req, res) => {
 									res.write(createEvent("content_block_delta", chunkJSON));
 								}
 							});
+						}else{
+							console.log(chunk);
 						}
 					} catch (e) {
 						console.log(e);
