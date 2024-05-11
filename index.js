@@ -5,12 +5,13 @@ const { v4: uuidv4 } = require("uuid");
 const app = express();
 const axios = require("axios");
 const port = 8080;
+const validApiKey = process.env.PASSWORD;
 
 axios.defaults.headers.common["User-Agent"] = process.env.USER_AGENT;
 axios.defaults.headers.common["Cookie"] = process.env.YOUCOM_COOKIE;
 
 
-app.post("/v1/messages", (req, res) => {
+app.post("/v1/messages", apiKeyAuth, (req, res) => {
 	req.rawBody = "";
 	req.setEncoding("utf8");
 
@@ -99,7 +100,7 @@ app.post("/v1/messages", (req, res) => {
 
 
 				// 试算用户消息长度
-				if(encodeURIComponent(JSON.stringify(userMessage)).length + encodeURIComponent(userQuery).length > 32000) { 
+				if(encodeURIComponent(JSON.stringify(userMessage)).length + encodeURIComponent(userQuery).length > 32000) {
 					//太长了，需要上传
 
 					// user message to plaintext
@@ -281,7 +282,23 @@ app.use((req, res, next) => {
 
 app.listen(port, () => {
 	console.log(`YouChat proxy listening on port ${port}`);
+	if (!validApiKey) {
+		console.log(`Proxy is currently running with no authentication`)
+	}
 });
+
+function apiKeyAuth(req, res, next) {
+	const reqApiKey = req.header('x-api-key');
+
+	if (validApiKey && (reqApiKey !== validApiKey)) {
+		// If Environment variable PASSWORD is set AND x-api-key header is not equal to it, return 401
+		const clientIpAddress = req.headers['x-forwarded-for'] || req.ip;
+		console.log(`Receviced Request from IP ${clientIpAddress} but got invalid password.`);
+		return res.status(401).json({error: 'Invalid Password'});
+	}
+
+	next();
+}
 
 // eventStream util
 function createEvent(event, data) {
@@ -305,7 +322,7 @@ function createDocx(content) {
 		sections: [
 			{
 				properties: {},
-				children: 
+				children:
 					paragraphs
 				,
 			},
