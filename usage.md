@@ -1,5 +1,7 @@
 # 使用方法
 
+0. 安装 Node.JS
+
 1. 获得一个 YOU.COM 账户并且订阅，登录。
 
 2. 打开 F12（DevTools），找到 “Network（网络）”、刷新一下页面，找到“you.com”这个项目（或者“instrumentation”这个项目）
@@ -78,6 +80,8 @@ zephyr
 
 
 # Usage
+
+0. Install Node.JS
 
 1. Get a you.com account and subscribe, log in.
 
