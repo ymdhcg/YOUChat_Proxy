@@ -111,7 +111,8 @@ app.post("/v1/messages", apiKeyAuth, (req, res) => {
 						})
 						.join("\n\n");
 
-					userQuery = "Please view the document and reply.";
+					// 试算最新一条human消息长度
+					if(encodeURIComponent(userQuery).length > 30000) userQuery = "Please view the document and reply.";
 					userMessage = [];
 
 					// GET https://you.com/api/get_nonce to get nonce
