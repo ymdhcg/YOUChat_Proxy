@@ -6,7 +6,7 @@ const { ProxyAgent } = require("proxy-agent");
 const agent = new ProxyAgent();
 const app = express();
 const axios = require("axios");
-const port = 8080;
+const port = process.env.PORT || 8080;
 const validApiKey = process.env.PASSWORD;
 
 // import config.js
@@ -167,7 +167,7 @@ app.post("/v1/messages", apiKeyAuth, (req, res) => {
 							chatId: traceId,
 							traceId: `${traceId}|${msgid}|${new Date().toISOString()}`,
 							conversationTurnId: msgid,
-							selectedAiModel: "claude_3_opus",
+							selectedAiModel: process.env.AI_MODEL || "claude_3_opus",
 							selectedChatMode: "custom",
 							pastChatLength: userMessage.length,
 							queryTraceId: traceId,

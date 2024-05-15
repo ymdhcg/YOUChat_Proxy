@@ -23,9 +23,9 @@ A proxy for YOU Chat.
 
 ## Limitations 限制
 
-Only Anthropic API format is supported. The model is hardcoded Claude 3 Opus.
+Only Anthropic API format is supported. Change the model name to use different models (default claude_3_opus)
 
-只支持A社的API格式，模型是写死了的 Claude 3 Opus
+只支持A社的API格式，默认模型为 claude_3_opus。
 
 Messages will be squashed into question: ... answer: ... format.
 
