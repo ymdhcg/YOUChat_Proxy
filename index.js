@@ -13,7 +13,8 @@ const validApiKey = process.env.PASSWORD;
 try {
 	var config = require("./config.js");
 } catch (e) {
-	console.error("Missing config.js, create it from config.example.js and fill in the values.");
+	console.error(e);
+	console.error("config.js missing or corrupted, create it from config.example.js and fill in the values.");
 	process.exit(1);
 }
 
