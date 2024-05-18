@@ -39,7 +39,7 @@ app.post("/v1/messages", apiKeyAuth, (req, res) => {
 		res.setHeader("Access-Control-Allow-Origin", "*");
 		try {
 			let jsonBody = JSON.parse(req.rawBody);
-			if (jsonBody.stream == false) {
+			if (!jsonBody.stream) {
 				res.send(
 					JSON.stringify({
 						id: uuidv4(),
