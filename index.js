@@ -36,7 +36,7 @@ app.post("/v1/messages", apiKeyAuth, (req, res) => {
 
 	req.on("end", async () => {
 		res.setHeader("Content-Type", "text/event-stream;charset=utf-8");
-		res.setHeader("Allow-Control-Allow-Origin", "*");
+		res.setHeader("Access-Control-Allow-Origin", "*");
 		try {
 			let jsonBody = JSON.parse(req.rawBody);
 			if (jsonBody.stream == false) {
