@@ -18,7 +18,14 @@ try {
 	process.exit(1);
 }
 
-
+// handle preflight request
+app.options("/v1/messages", (req, res) => {
+	res.setHeader("Access-Control-Allow-Origin", "*");
+	res.setHeader("Access-Control-Allow-Methods", "*");
+	res.setHeader("Access-Control-Allow-Headers", "*");
+	res.setHeader("Access-Control-Max-Age", "86400");
+	res.status(200).end();
+});
 app.post("/v1/messages", apiKeyAuth, (req, res) => {
 	req.rawBody = "";
 	req.setEncoding("utf8");
