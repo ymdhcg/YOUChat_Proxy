@@ -39,112 +39,89 @@ app.post("/v1/messages", apiKeyAuth, (req, res) => {
 		res.setHeader("Access-Control-Allow-Origin", "*");
 		try {
 			let jsonBody = JSON.parse(req.rawBody);
-			if (!jsonBody.stream) {
-				res.send(
-					JSON.stringify({
-						id: uuidv4(),
-						content: [
-							{
-								text: "Please turn on streaming.",
-							},
-							{
-								id: "string",
-								name: "string",
-								input: {},
-							},
-						],
-						model: "string",
-						stop_reason: "end_turn",
-						stop_sequence: "string",
-						usage: {
-							input_tokens: 0,
-							output_tokens: 0,
+			// 计算用户消息长度
+			let userMessage = [{ question: "", answer: "" }];
+			let userQuery = "";
+			let lastUpdate = true;
+			if (jsonBody.system) {
+				// 把系统消息加入messages的首条
+				jsonBody.messages.unshift({ role: "system", content: jsonBody.system });
+			}
+			console.log("message length:" + jsonBody.messages.length);
+			jsonBody.messages.forEach((msg) => {
+				if (msg.role == "system" || msg.role == "user") {
+					if (lastUpdate) {
+						userMessage[userMessage.length - 1].question += msg.content + "\n";
+					} else if (userMessage[userMessage.length - 1].question == "") {
+						userMessage[userMessage.length - 1].question += msg.content + "\n";
+					} else {
+						userMessage.push({ question: msg.content + "\n", answer: "" });
+					}
+					lastUpdate = true;
+				} else if (msg.role == "assistant") {
+					if (!lastUpdate) {
+						userMessage[userMessage.length - 1].answer += msg.content + "\n";
+					} else if (userMessage[userMessage.length - 1].answer == "") {
+						userMessage[userMessage.length - 1].answer += msg.content + "\n";
+					} else {
+						userMessage.push({ question: "", answer: msg.content + "\n" });
+					}
+					lastUpdate = false;
+				}
+			});
+			userQuery = userMessage[userMessage.length - 1].question;
+
+			var traceId=uuidv4();
+
+			// decide which session to use randomly
+			let sessionIndex = Math.floor(Math.random() * config.sessions.length);
+			var session = config.sessions[sessionIndex];
+			console.log("using session " + sessionIndex);
+			var instance = axios.create({
+				headers: {
+					"User-Agent": session.user_agent,
+					"Cookie": session.cookie,
+				},
+				httpsAgent: agent,
+			});
+
+			// 试算用户消息长度
+			if(encodeURIComponent(JSON.stringify(userMessage)).length + encodeURIComponent(userQuery).length > 32000) {
+				//太长了，需要上传
+
+				// user message to plaintext
+				let previousMessages = jsonBody.messages
+					.map((msg) => {
+						return msg.content
+					})
+					.join("\n\n");
+
+				// 试算最新一条human消息长度
+				if(encodeURIComponent(userQuery).length > 30000) userQuery = "Please view the document and reply.";
+				userMessage = [];
+
+				// GET https://you.com/api/get_nonce to get nonce
+				let nonce = await instance("https://you.com/api/get_nonce").then((res) => res.data);
+				if (!nonce) throw new Error("Failed to get nonce");
+
+				// POST https://you.com/api/upload to upload user message
+				const form_data = new FormData();
+				var messageBuffer = await createDocx(previousMessages);
+				form_data.append("file", messageBuffer, { filename: "messages.docx", contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
+				var uploadedFile = await instance
+					.post("https://you.com/api/upload", form_data, {
+						headers: {
+							...form_data.getHeaders(),
+							"X-Upload-Nonce": nonce,
 						},
 					})
-				);
-			} else if (jsonBody.stream == true) {
-				// 计算用户消息长度
-				let userMessage = [{ question: "", answer: "" }];
-				let userQuery = "";
-				let lastUpdate = true;
-				if (jsonBody.system) {
-					// 把系统消息加入messages的首条
-					jsonBody.messages.unshift({ role: "system", content: jsonBody.system });
-				}
-				console.log("message length:" + jsonBody.messages.length);
-				jsonBody.messages.forEach((msg) => {
-					if (msg.role == "system" || msg.role == "user") {
-						if (lastUpdate) {
-							userMessage[userMessage.length - 1].question += msg.content + "\n";
-						} else if (userMessage[userMessage.length - 1].question == "") {
-							userMessage[userMessage.length - 1].question += msg.content + "\n";
-						} else {
-							userMessage.push({ question: msg.content + "\n", answer: "" });
-						}
-						lastUpdate = true;
-					} else if (msg.role == "assistant") {
-						if (!lastUpdate) {
-							userMessage[userMessage.length - 1].answer += msg.content + "\n";
-						} else if (userMessage[userMessage.length - 1].answer == "") {
-							userMessage[userMessage.length - 1].answer += msg.content + "\n";
-						} else {
-							userMessage.push({ question: "", answer: msg.content + "\n" });
-						}
-						lastUpdate = false;
-					}
-				});
-				userQuery = userMessage[userMessage.length - 1].question;
+					.then((res) => res.data.filename);
+				if (!uploadedFile) throw new Error("Failed to upload messages");
+			}
 
-				var traceId=uuidv4();
+			let msgid = uuidv4();
 
-				// decide which session to use randomly
-				let sessionIndex = Math.floor(Math.random() * config.sessions.length);
-				var session = config.sessions[sessionIndex];
-				console.log("using session " + sessionIndex);
-				var instance = axios.create({
-					headers: {
-						"User-Agent": session.user_agent,
-						"Cookie": session.cookie,
-					},
-					httpsAgent: agent,
-				});
-
-				// 试算用户消息长度
-				if(encodeURIComponent(JSON.stringify(userMessage)).length + encodeURIComponent(userQuery).length > 32000) {
-					//太长了，需要上传
-
-					// user message to plaintext
-					let previousMessages = jsonBody.messages
-						.map((msg) => {
-							return msg.content
-						})
-						.join("\n\n");
-
-					// 试算最新一条human消息长度
-					if(encodeURIComponent(userQuery).length > 30000) userQuery = "Please view the document and reply.";
-					userMessage = [];
-
-					// GET https://you.com/api/get_nonce to get nonce
-					let nonce = await instance("https://you.com/api/get_nonce").then((res) => res.data);
-					if (!nonce) throw new Error("Failed to get nonce");
-
-					// POST https://you.com/api/upload to upload user message
-					const form_data = new FormData();
-					var messageBuffer = await createDocx(previousMessages);
-					form_data.append("file", messageBuffer, { filename: "messages.docx", contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
-					var uploadedFile = await instance
-						.post("https://you.com/api/upload", form_data, {
-							headers: {
-								...form_data.getHeaders(),
-								"X-Upload-Nonce": nonce,
-							},
-						})
-						.then((res) => res.data.filename);
-					if (!uploadedFile) throw new Error("Failed to upload messages");
-				}
-
-				let msgid = uuidv4();
-
+			if(jsonBody.stream){
 				// send message start
 				res.write(
 					createEvent("message_start", {
@@ -163,106 +140,112 @@ app.post("/v1/messages", apiKeyAuth, (req, res) => {
 				);
 				res.write(createEvent("content_block_start", { type: "content_block_start", index: 0, content_block: { type: "text", text: "" } }));
 				res.write(createEvent("ping", { type: "ping" }));
+			}
 
-				// proxy response
+			// proxy response
 
-				var proxyReq = await instance
-					.get("https://you.com/api/streamingSearch", {
-						params: {
-							page: "1",
-							count: "10",
-							safeSearch: "Off",
-							q: userQuery.trim(),
-							incognito: "true",
-							chatId: traceId,
-							traceId: `${traceId}|${msgid}|${new Date().toISOString()}`,
-							conversationTurnId: msgid,
-							selectedAiModel: process.env.AI_MODEL || "claude_3_opus",
-							selectedChatMode: "custom",
-							pastChatLength: userMessage.length,
-							queryTraceId: traceId,
-							use_personalization_extraction: "false",
-							domain: "youchat",
-							responseFilter: "WebPages,TimeZone,Computation,RelatedSearches",
-							mkt: "zh-CN",
-							userFiles: uploadedFile
-								? JSON.stringify([
-										{
-											user_filename: "messages.docx",
-											filename: uploadedFile,
-											size: messageBuffer.length,
-										},
-								  ])
-								: "",
-							chat: JSON.stringify(userMessage),
-						},
-						headers: {
-							accept: "text/event-stream",
-							referer: "https://you.com/search?q=&fromSearchBar=true&tbm=youchat&chatMode=custom"
-						},
-						responseType: "stream",
-					})
-					.catch((e) => {
-						if(e?.response?.data) {
-							// print data
-							e.response.data.on("data", (chunk) => {
-								console.log(chunk.toString());
-							}
-							);
-						}else{
-							throw e;
+			var proxyReq = await instance
+				.get("https://you.com/api/streamingSearch", {
+					params: {
+						page: "1",
+						count: "10",
+						safeSearch: "Off",
+						q: userQuery.trim(),
+						incognito: "true",
+						chatId: traceId,
+						traceId: `${traceId}|${msgid}|${new Date().toISOString()}`,
+						conversationTurnId: msgid,
+						selectedAiModel: process.env.AI_MODEL || "claude_3_opus",
+						selectedChatMode: "custom",
+						pastChatLength: userMessage.length,
+						queryTraceId: traceId,
+						use_personalization_extraction: "false",
+						domain: "youchat",
+						responseFilter: "WebPages,TimeZone,Computation,RelatedSearches",
+						mkt: "zh-CN",
+						userFiles: uploadedFile
+							? JSON.stringify([
+									{
+										user_filename: "messages.docx",
+										filename: uploadedFile,
+										size: messageBuffer.length,
+									},
+								])
+							: "",
+						chat: JSON.stringify(userMessage),
+					},
+					headers: {
+						accept: "text/event-stream",
+						referer: "https://you.com/search?q=&fromSearchBar=true&tbm=youchat&chatMode=custom"
+					},
+					responseType: "stream",
+				})
+				.catch((e) => {
+					if(e?.response?.data) {
+						// print data
+						e.response.data.on("data", (chunk) => {
+							console.log(chunk.toString());
 						}
-					});
-
-				let cachedLine = "";
-				const stream = proxyReq.data;
-				stream.on("data", (chunk) => {
-					// try to parse eventstream chunk
-					chunk = chunk.toString();
-
-					if (cachedLine) {
-						chunk = cachedLine + chunk;
-						cachedLine = "";
+						);
+					}else{
+						throw e;
 					}
+				});
+			var finalResponse = "";
+			let cachedLine = "";
+			const stream = proxyReq.data;
+			stream.on("data", (chunk) => {
+				// try to parse eventstream chunk
+				chunk = chunk.toString();
 
-					if (!chunk.endsWith("\n")) {
-						const lines = chunk.split("\n");
-						cachedLine = lines.pop();
-						chunk = lines.join("\n");
-					}
+				if (cachedLine) {
+					chunk = cachedLine + chunk;
+					cachedLine = "";
+				}
 
-					try {
-						if (chunk.indexOf("event: youChatToken\n") != -1) {
-							chunk.split("\n").forEach((line) => {
-								if (line.startsWith(`data: {"youChatToken"`)) {
-									let data = line.substring(6);
-									let json = JSON.parse(data);
-									process.stdout.write(json.youChatToken);
-									chunkJSON = JSON.stringify({
-										type: "content_block_delta",
-										index: 0,
-										delta: { type: "text_delta", text: json.youChatToken },
-									});
+				if (!chunk.endsWith("\n")) {
+					const lines = chunk.split("\n");
+					cachedLine = lines.pop();
+					chunk = lines.join("\n");
+				}
+
+				try {
+					if (chunk.indexOf("event: youChatToken\n") != -1) {
+						chunk.split("\n").forEach((line) => {
+							if (line.startsWith(`data: {"youChatToken"`)) {
+								let data = line.substring(6);
+								let json = JSON.parse(data);
+								process.stdout.write(json.youChatToken);
+								chunkJSON = JSON.stringify({
+									type: "content_block_delta",
+									index: 0,
+									delta: { type: "text_delta", text: json.youChatToken },
+								});
+								if(jsonBody.stream){
 									res.write(createEvent("content_block_delta", chunkJSON));
+								}else{
+									finalResponse += json.youChatToken;
 								}
-							});
-						}else{
-							console.log(chunk);
-						}
-					} catch (e) {
-						console.log(e);
+							}
+						});
+					}else{
+						console.log(chunk);
 					}
-				});
+				} catch (e) {
+					console.log(e);
+				}
+			});
 
-				res.on("close", function () {
-					console.log(" > [Client closed]");
-					if (stream && typeof stream.destroy === 'function') {
-						stream.destroy();
-					}
-				});
+			res.on("close", function () {
+				console.log(" > [Client closed]");
+				if (stream && typeof stream.destroy === 'function') {
+					stream.destroy();
+				}
+			});
 
-				stream.on("end", () => {
-					// send ending
+			stream.on("end", () => {
+				if(jsonBody.stream){
+				// send ending
 					res.write(createEvent("content_block_stop", { type: "content_block_stop", index: 0 }));
 					res.write(
 						createEvent("message_delta", {
@@ -272,12 +255,33 @@ app.post("/v1/messages", apiKeyAuth, (req, res) => {
 						})
 					);
 					res.write(createEvent("message_stop", { type: "message_stop" }));
+				} else {
+					res.write(
+						JSON.stringify({
+							id: uuidv4(),
+							content: [
+								{
+									text: finalResponse,
+								},
+								{
+									id: "string",
+									name: "string",
+									input: {},
+								},
+							],
+							model: "string",
+							stop_reason: "end_turn",
+							stop_sequence: "string",
+							usage: {
+								input_tokens: 0,
+								output_tokens: 0,
+							},
+						})
+					);
+				}
+				res.end();
 
-					res.end();
-				});
-			} else {
-				throw new Error("Invalid request");
-			}
+			});
 		} catch (e) {
 			console.log(e);
 			res.write(JSON.stringify({ error: e.message }));
