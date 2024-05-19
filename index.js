@@ -8,6 +8,33 @@ const app = express();
 const axios = require("axios");
 const port = process.env.PORT || 8080;
 const validApiKey = process.env.PASSWORD;
+const availableModels = [
+	"gpt_4o",
+	"gpt_4_turbo",
+	"gpt_4",
+	"claude_3_opus",
+	"claude_3_sonnet",
+	"claude_3_haiku",
+	"claude_2",
+	"llama3",
+	"gemini_pro",
+	"gemini_1_5_pro",
+	"databricks_dbrx_instruct",
+	"command_r",
+	"command_r_plus",
+	"zephyr",
+];
+const modelMappping = {
+	"gpt-4": "gpt_4",
+	"gpt-4-turbo": "gpt_4_turbo",
+	"gpt-4o": "gpt_4o",
+	"claude-3-opus": "claude_3_opus",
+	"claude-3-sonnet": "claude_3_sonnet",
+	"claude-3-haiku": "claude_3_haiku",
+	"claude-2": "claude_2",
+	"gemini-pro": "gemini_pro",
+	"gemini-1-5-pro": "gemini_1_5_pro"
+}
 
 // import config.js
 try {
@@ -26,7 +53,21 @@ app.options("/v1/messages", (req, res) => {
 	res.setHeader("Access-Control-Max-Age", "86400");
 	res.status(200).end();
 });
-app.post("/v1/messages", apiKeyAuth, (req, res) => {
+app.get("/v1/models", apiKeyAuth, (req, res) => {
+	res.setHeader("Content-Type", "application/json");
+	res.setHeader("Access-Control-Allow-Origin", "*");
+	let models = availableModels.map((model, index) => {
+		return {
+			id: model,
+			object: "model",
+			created: 1700000000,
+			owned_by: "closeai",
+			name: model,
+		};
+	});
+	res.json({ object: "list", data: models });
+});
+app.post("/v1/chat/completions", apiKeyAuth, (req, res) => {
 	req.rawBody = "";
 	req.setEncoding("utf8");
 
@@ -38,17 +79,25 @@ app.post("/v1/messages", apiKeyAuth, (req, res) => {
 		res.setHeader("Content-Type", "text/event-stream;charset=utf-8");
 		res.setHeader("Access-Control-Allow-Origin", "*");
 		try {
-			let jsonBody = JSON.parse(req.rawBody);
+			let requestBody = JSON.parse(req.rawBody);
+			// try to map model
+			if (requestBody.model && modelMappping[requestBody.model]) {
+				requestBody.model = modelMappping[requestBody.model];
+			}
+			if (requestBody.model && !availableModels.includes(requestBody.model)) {
+				res.json({ error: { code: 404, message: "Invalid Model" } });
+				return;
+			}
 			// 计算用户消息长度
 			let userMessage = [{ question: "", answer: "" }];
 			let userQuery = "";
 			let lastUpdate = true;
-			if (jsonBody.system) {
+			if (requestBody.system) {
 				// 把系统消息加入messages的首条
-				jsonBody.messages.unshift({ role: "system", content: jsonBody.system });
+				requestBody.messages.unshift({ role: "system", content: requestBody.system });
 			}
-			console.log("message length:" + jsonBody.messages.length);
-			jsonBody.messages.forEach((msg) => {
+			console.log("message length:" + requestBody.messages.length);
+			requestBody.messages.forEach((msg) => {
 				if (msg.role == "system" || msg.role == "user") {
 					if (lastUpdate) {
 						userMessage[userMessage.length - 1].question += msg.content + "\n";
@@ -71,7 +120,7 @@ app.post("/v1/messages", apiKeyAuth, (req, res) => {
 			});
 			userQuery = userMessage[userMessage.length - 1].question;
 
-			var traceId=uuidv4();
+			var traceId = uuidv4();
 
 			// decide which session to use randomly
 			let sessionIndex = Math.floor(Math.random() * config.sessions.length);
@@ -80,24 +129,24 @@ app.post("/v1/messages", apiKeyAuth, (req, res) => {
 			var instance = axios.create({
 				headers: {
 					"User-Agent": session.user_agent,
-					"Cookie": session.cookie,
+					Cookie: session.cookie,
 				},
 				httpsAgent: agent,
 			});
 
 			// 试算用户消息长度
-			if(encodeURIComponent(JSON.stringify(userMessage)).length + encodeURIComponent(userQuery).length > 32000) {
+			if (encodeURIComponent(JSON.stringify(userMessage)).length + encodeURIComponent(userQuery).length > 32000) {
 				//太长了，需要上传
 
 				// user message to plaintext
-				let previousMessages = jsonBody.messages
+				let previousMessages = requestBody.messages
 					.map((msg) => {
-						return msg.content
+						return msg.content;
 					})
 					.join("\n\n");
 
 				// 试算最新一条human消息长度
-				if(encodeURIComponent(userQuery).length > 30000) userQuery = "Please view the document and reply.";
+				if (encodeURIComponent(userQuery).length > 30000) userQuery = "Please view the document and reply.";
 				userMessage = [];
 
 				// GET https://you.com/api/get_nonce to get nonce
@@ -107,7 +156,10 @@ app.post("/v1/messages", apiKeyAuth, (req, res) => {
 				// POST https://you.com/api/upload to upload user message
 				const form_data = new FormData();
 				var messageBuffer = await createDocx(previousMessages);
-				form_data.append("file", messageBuffer, { filename: "messages.docx", contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
+				form_data.append("file", messageBuffer, {
+					filename: "messages.docx",
+					contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+				});
 				var uploadedFile = await instance
 					.post("https://you.com/api/upload", form_data, {
 						headers: {
@@ -121,25 +173,19 @@ app.post("/v1/messages", apiKeyAuth, (req, res) => {
 
 			let msgid = uuidv4();
 
-			if(jsonBody.stream){
+			if (requestBody.stream) {
 				// send message start
+				res.write(createEvent(":", "queue heartbeat 114514"));
 				res.write(
-					createEvent("message_start", {
-						type: "message_start",
-						message: {
-							id: `${traceId}`,
-							type: "message",
-							role: "assistant",
-							content: [],
-							model: "claude-3-opus-20240229",
-							stop_reason: null,
-							stop_sequence: null,
-							usage: { input_tokens: 8, output_tokens: 1 },
-						},
+					createEvent("data", {
+						id: msgid,
+						object: "chat.completion.chunk",
+						created: Math.floor(new Date().getTime() / 1000),
+						model: requestBody.model,
+						system_fingerprint: "114514",
+						choices: [{ index: 0, delta: { role: "assistant", content: "" }, logprobs: null, finish_reason: null }],
 					})
 				);
-				res.write(createEvent("content_block_start", { type: "content_block_start", index: 0, content_block: { type: "text", text: "" } }));
-				res.write(createEvent("ping", { type: "ping" }));
 			}
 
 			// proxy response
@@ -155,7 +201,7 @@ app.post("/v1/messages", apiKeyAuth, (req, res) => {
 						chatId: traceId,
 						traceId: `${traceId}|${msgid}|${new Date().toISOString()}`,
 						conversationTurnId: msgid,
-						selectedAiModel: process.env.AI_MODEL || "claude_3_opus",
+						selectedAiModel: requestBody.model,
 						selectedChatMode: "custom",
 						pastChatLength: userMessage.length,
 						queryTraceId: traceId,
@@ -170,24 +216,23 @@ app.post("/v1/messages", apiKeyAuth, (req, res) => {
 										filename: uploadedFile,
 										size: messageBuffer.length,
 									},
-								])
+							  ])
 							: "",
 						chat: JSON.stringify(userMessage),
 					},
 					headers: {
 						accept: "text/event-stream",
-						referer: "https://you.com/search?q=&fromSearchBar=true&tbm=youchat&chatMode=custom"
+						referer: "https://you.com/search?q=&fromSearchBar=true&tbm=youchat&chatMode=custom",
 					},
 					responseType: "stream",
 				})
 				.catch((e) => {
-					if(e?.response?.data) {
+					if (e?.response?.data) {
 						// print data
 						e.response.data.on("data", (chunk) => {
 							console.log(chunk.toString());
-						}
-						);
-					}else{
+						});
+					} else {
 						throw e;
 					}
 				});
@@ -213,22 +258,38 @@ app.post("/v1/messages", apiKeyAuth, (req, res) => {
 					if (chunk.indexOf("event: youChatToken\n") != -1) {
 						chunk.split("\n").forEach((line) => {
 							if (line.startsWith(`data: {"youChatToken"`)) {
-								let data = line.substring(6);
-								let json = JSON.parse(data);
-								process.stdout.write(json.youChatToken);
-								chunkJSON = JSON.stringify({
-									type: "content_block_delta",
-									index: 0,
-									delta: { type: "text_delta", text: json.youChatToken },
-								});
-								if(jsonBody.stream){
-									res.write(createEvent("content_block_delta", chunkJSON));
-								}else{
-									finalResponse += json.youChatToken;
+								let ret = line.substring(6);
+								ret = JSON.parse(ret);
+								process.stdout.write(ret.youChatToken);
+								if (requestBody.stream) {
+									res.write(
+										createEvent("data", {
+											choices: [
+												{
+													content_filter_results: {
+														hate: { filtered: false, severity: "safe" },
+														self_harm: { filtered: false, severity: "safe" },
+														sexual: { filtered: false, severity: "safe" },
+														violence: { filtered: false, severity: "safe" },
+													},
+													delta: { content: ret.youChatToken },
+													finish_reason: null,
+													index: 0,
+												},
+											],
+											created: Math.floor(new Date().getTime() / 1000),
+											id: msgid,
+											model: requestBody.model,
+											object: "chat.completion.chunk",
+											system_fingerprint: "114514",
+										})
+									);
+								} else {
+									finalResponse += ret.youChatToken;
 								}
 							}
 						});
-					}else{
+					} else {
 						console.log(chunk);
 					}
 				} catch (e) {
@@ -238,53 +299,47 @@ app.post("/v1/messages", apiKeyAuth, (req, res) => {
 
 			res.on("close", function () {
 				console.log(" > [Client closed]");
-				if (stream && typeof stream.destroy === 'function') {
+				if (stream && typeof stream.destroy === "function") {
 					stream.destroy();
 				}
 			});
 
 			stream.on("end", () => {
-				if(jsonBody.stream){
-				// send ending
-					res.write(createEvent("content_block_stop", { type: "content_block_stop", index: 0 }));
-					res.write(
-						createEvent("message_delta", {
-							type: "message_delta",
-							delta: { stop_reason: "end_turn", stop_sequence: null },
-							usage: { output_tokens: 12 },
-						})
-					);
-					res.write(createEvent("message_stop", { type: "message_stop" }));
+				if (requestBody.stream) {
+					// send ending
+					res.write(createEvent("data", "[DONE]"));
 				} else {
 					res.write(
 						JSON.stringify({
-							id: uuidv4(),
-							content: [
+							id: msgid,
+							object: "chat.completion",
+							created: Math.floor(new Date().getTime() / 1000),
+							model: requestBody.model,
+							system_fingerprint: "114514",
+							choices: [
 								{
-									text: finalResponse,
-								},
-								{
-									id: "string",
-									name: "string",
-									input: {},
+									index: 0,
+									message: {
+										role: "assistant",
+										content: finalResponse,
+									},
+									logprobs: null,
+									finish_reason: "stop",
 								},
 							],
-							model: "string",
-							stop_reason: "end_turn",
-							stop_sequence: "string",
 							usage: {
-								input_tokens: 0,
-								output_tokens: 0,
+								prompt_tokens: 1,
+								completion_tokens: 1,
+								total_tokens: 1,
 							},
 						})
 					);
 				}
 				res.end();
-
 			});
 		} catch (e) {
 			console.log(e);
-			res.write(JSON.stringify({ error: e.message }));
+			res.write(JSON.stringify({ error: { code: 500, message: e.message } }));
 			res.end();
 			return;
 		}
@@ -299,48 +354,45 @@ app.use((req, res, next) => {
 app.listen(port, () => {
 	console.log(`YouChat proxy listening on port ${port}`);
 	if (!validApiKey) {
-		console.log(`Proxy is currently running with no authentication`)
+		console.log(`Proxy is currently running with no authentication`);
 	}
 });
 
 function apiKeyAuth(req, res, next) {
-	const reqApiKey = req.header('x-api-key');
+	const reqApiKey = req.header("Authorization");
 
-	if (validApiKey && (reqApiKey !== validApiKey)) {
-		// If Environment variable PASSWORD is set AND x-api-key header is not equal to it, return 401
-		const clientIpAddress = req.headers['x-forwarded-for'] || req.ip;
+	if (validApiKey && reqApiKey !== "Bearer " + validApiKey) {
+		// If Environment variable PASSWORD is set AND Authorization header is not equal to it, return 401
+		const clientIpAddress = req.headers["x-forwarded-for"] || req.ip;
 		console.log(`Receviced Request from IP ${clientIpAddress} but got invalid password.`);
-		return res.status(401).json({error: 'Invalid Password'});
+		return res.status(401).json({ error: { code: 403, message: "Invalid Password" } });
 	}
 
 	next();
 }
 
 // eventStream util
-function createEvent(event, data) {
-	// if data is object, stringify it
-	if (typeof data === "object") {
-		data = JSON.stringify(data);
+function createEvent(field, value) {
+	if (typeof value === "object") {
+		value = JSON.stringify(value);
 	}
-	return `event: ${event}\ndata: ${data}\n\n`;
+	return `${field}: ${value}\n\n`;
 }
 
 function createDocx(content) {
 	var paragraphs = [];
 	content.split("\n").forEach((line) => {
-	paragraphs.push(new docx.Paragraph({
-		children: [
-			new docx.TextRun(line),
-		],
-	}));
-});
+		paragraphs.push(
+			new docx.Paragraph({
+				children: [new docx.TextRun(line)],
+			})
+		);
+	});
 	var doc = new docx.Document({
 		sections: [
 			{
 				properties: {},
-				children:
-					paragraphs
-				,
+				children: paragraphs,
 			},
 		],
 	});

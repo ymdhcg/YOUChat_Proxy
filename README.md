@@ -2,7 +2,7 @@
 
 A proxy for YOU Chat.
 
-把 YOU.Com 转换为 Anthropic 格式的通用代理。
+把 YOU.Com 转换为 OpenAI 格式的通用代理。
 
 [**Usage 使用方法**](usage.md)
 
@@ -20,10 +20,6 @@ ETIMEOUT (443) - 网络不好，换个代理
 config.js corrupted or missing - 填写Cookie格式不对，建议用vscode编辑（会提示问题在哪），cookie和ua都必须各自一行写完，以 `",` 结束。
 
 ## Limitations 限制
-
-Only Anthropic API format is supported. Change the model name to use different models (default claude_3_opus)
-
-只支持A社的API格式，默认模型为 claude_3_opus。
 
 Messages will be squashed into question: ... answer: ... format.
 

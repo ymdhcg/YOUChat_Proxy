@@ -37,11 +37,9 @@ module.exports = {
 
     （可选）如果需要，可以设置代理。
 
-    （可选）如果需要，可以修改使用的模型。但是仍然建议使用opus，因为其他未经测试。
-
 8. 启动 start.bat
 
-9. 酒馆中选择 Claude，反向代理地址填 http://127.0.0.1:8080/v1 **反代密码必须填, 同时打开流式传输**，随便什么都可以（除非你在第7步设置了PASSWORD）。
+9. 酒馆中选择 **Custom (OpenAI-compatible)**，反向代理地址填 http://127.0.0.1:8080/v1 **反代密码必须填**，随便什么都可以（除非你在第7步设置了PASSWORD）。
 
 10. 开始使用。如果失败了/没有结果/403/Warning 就多重试几次。
 
@@ -52,27 +50,6 @@ module.exports = {
 比如，如要使用 Clash 的默认本地代理，则应设置为 `set https_proxy=http://127.0.0.1:7890`
 
 欲知详细代理格式，请查阅 https://www.npmjs.com/package/proxy-from-env
-
-# 修改模型
-
-修改`AI_MODEL`环境变量可以切换模型，支持的模型名字如下 (请参考官网获取最新模型):
-
-```
-gpt_4o
-gpt_4_turbo
-gpt_4
-claude_3_opus
-claude_3_sonnet
-claude_3_haiku
-claude_2
-llama3
-gemini_pro
-gemini_1_5_pro
-databricks_dbrx_instruct
-command_r
-command_r_plus
-zephyr
-```
 
 ## 注意事项
 
@@ -89,7 +66,7 @@ zephyr
 
 3. Click on it, scroll down and find “Cookie:”, and copy the entire contents.
 
-4. Find the "user-agnet" in the same way.
+4. Find the "user-agent" in the same way.
 
 5. Download or Clone the code of this project and unzip it.
 
@@ -118,41 +95,16 @@ module.exports = {
    
    (Optional) You can set the proxy in start.bat. See below.
 
-   (Optional) You may change the model to use, but only claude_3_opus is tested.
-
 8. Start start.bat
 
-9. Select Claude in the Tavern and put http://127.0.0.1:8080/v1 as the address of the reverse proxy. **Use any random string for password, also turn on Streaming** (unless you set PASSWORD in step 7).
+9. Select **Custom (OpenAI-compatible)** in the SillyTavern and ues http://127.0.0.1:8080/v1 as the endpoint of the reverse proxy. **Use any random string for password** (unless you set PASSWORD in step 7).
 
-10. Enjoy it. If it fails/no result/403/Warning, try again.
+10. Select the model and Enjoy it. If it fails/no result/403/Warning, try again.
 
 # Use custom proxy
 
 Use the `https_proxy` env to set custom proxy. Refer to https://www.npmjs.com/package/proxy-from-env for detail.
 
-# Change model
-
-Change `AI_MODEL` env to switch between models.
-
-Supported model names (refer to you.com website for latest models):
-
-```
-gpt_4o
-gpt_4_turbo
-gpt_4
-claude_3_opus
-claude_3_sonnet
-claude_3_haiku
-claude_2
-llama3
-gemini_pro
-gemini_1_5_pro
-databricks_dbrx_instruct
-command_r
-command_r_plus
-zephyr
-```
-
-## Caution
+## Reminder
 
 If you get 403 errors, consider getting the cookie again or changing your IP.
